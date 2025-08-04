@@ -40,3 +40,5 @@ Thumbs.db
 
 # Vite
 .vite/ 
+
+credentials.json

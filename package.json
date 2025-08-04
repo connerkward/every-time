@@ -4,17 +4,22 @@
   "private": true,
   "description": "UI Constrained Like CAD Parametrics - Regeneration Within Constraint",
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter web build",
-    "preview": "pnpm --filter web preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "type-check": "tsc --noEmit"
+    "dev": "pnpm --filter @every-time/timer-tracker dev",
+    "timer-tracker:dev:web": "pnpm --filter @every-time/timer-tracker dev:web",
+    "timer-tracker:dev:electron": "pnpm --filter @every-time/timer-tracker dev:electron",
+    "build": "pnpm --filter @every-time/timer-tracker build",
+    "timer-tracker:build": "pnpm --filter @every-time/timer-tracker build",
+    "timer-tracker:start": "pnpm --filter @every-time/timer-tracker start",
+    "timer-tracker:build:electron": "pnpm --filter @every-time/timer-tracker build:electron",
+    "lint": "pnpm --filter @every-time/timer-tracker lint",
+    "type-check": "pnpm --filter @every-time/timer-tracker type-check"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.45.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
+    "@types/node": "^24.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.3",
     "typescript": "^5.0.2"
   },
@@ -22,9 +27,10 @@
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
   },
+  "packageManager": "pnpm@10.14.0",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "type": "module"
-} 
+}

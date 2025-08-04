@@ -69,7 +69,7 @@ temp/
 .git/
 
 # Large reference files (since they're just for reference)
-trak-reference/
+# trak-reference/
 
 # Turborepo cache
 .turbo/cache/
@@ -88,17 +88,17 @@ trak-reference/
 *.rar
 
 # Binary files
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.svg
-*.ico
-*.icns
-*.pdf
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif
+# *.svg
+# *.ico
+# *.icns
+# *.pdf
 
 # Font files
-*.woff
-*.woff2
-*.ttf
-*.eot
+# *.woff
+# *.woff2
+# *.ttf
+# *.eot

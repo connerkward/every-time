@@ -1,0 +1,116 @@
+{
+  "name": "@every-time/timer-tracker",
+  "author": "Every Time Team",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mac menu bar timer tracker with Google Calendar integration",
+  "scripts": {
+    "dev:web": "vite --port 5173",
+    "dev:electron": "concurrently \"tsc -p tsconfig.desktop.json -w\" \"vite build --watch\" \"wait-on dist/desktop/main.js && cp desktop/preload.js dist/desktop/ && cp desktop/credentials.json dist/desktop/ && wait-on dist/renderer/index.html && electron . --dev\"",
+    "build": "tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && cp desktop/credentials.json dist/desktop/ && vite build",
+    "build:desktop": "tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && cp desktop/credentials.json dist/desktop/",
+    "build:renderer": "vite build",
+    "build:electron": "killall \"Timer Tracker\" || true && tsc -p tsconfig.desktop.json && vite build && electron-builder",
+    "start": "electron .",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "main": "dist/desktop/main.js",
+  "dependencies": {
+    "agent-base": "^7.1.4",
+    "arrify": "^3.0.0",
+    "base64-js": "^1.5.1",
+    "buffer-equal-constant-time": "^1.0.1",
+    "ecdsa-sig-formatter": "^1.0.11",
+    "electron-store": "^8.1.0",
+    "extend": "^3.0.2",
+    "gaxios": "^7.1.1",
+    "gcp-metadata": "^7.0.1",
+    "google-auth-library": "^10.2.1",
+    "google-p12-pem": "^5.0.0",
+    "googleapis": "^126.0.1",
+    "googleapis-common": "^8.0.0",
+    "gtoken": "^8.0.0",
+    "is": "^3.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "jws": "^4.0.0",
+    "lru-cache": "^11.1.0",
+    "node-cron": "^3.0.3",
+    "node-forge": "^1.3.1",
+    "qs": "^6.14.0",
+    "stream-events": "^1.0.5",
+    "teeny-request": "^10.1.0",
+    "url-template": "^3.1.1",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "concurrently": "^8.2.0",
+    "electron": "^26.2.1",
+    "electron-builder": "^24.6.4",
+    "postcss": "^8.4.27",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwindcss": "^3.3.3",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.5",
+    "wait-on": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.everytime.timer-tracker",
+    "productName": "Timer Tracker",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "src/**/*",
+      "public/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/googleapis/**",
+      "**/node_modules/googleapis-common/**",
+      "**/node_modules/google-auth-library/**",
+      "**/node_modules/gaxios/**",
+      "**/node_modules/gcp-metadata/**",
+      "**/node_modules/gtoken/**",
+      "**/node_modules/google-p12-pem/**",
+      "**/node_modules/jws/**",
+      "**/node_modules/jsonwebtoken/**",
+      "**/node_modules/lru-cache/**",
+      "**/node_modules/uuid/**",
+      "**/node_modules/qs/**",
+      "**/node_modules/url-template/**",
+      "**/node_modules/extend/**",
+      "**/node_modules/arrify/**",
+      "**/node_modules/stream-events/**",
+      "**/node_modules/is/**",
+      "**/node_modules/teeny-request/**",
+      "**/node_modules/agent-base/**",
+      "**/node_modules/node-forge/**",
+      "**/node_modules/base64-js/**",
+      "**/node_modules/buffer-equal-constant-time/**",
+      "**/node_modules/ecdsa-sig-formatter/**"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": {
+        "target": "dmg",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      },
+      "extendInfo": {
+        "LSUIElement": 1,
+        "LSBackgroundOnly": false
+      }
+    }
+  }
+}

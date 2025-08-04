@@ -15,6 +15,3 @@ yarn.lock
 .next/
 .vite/
 coverage/
-
-# Reference files (just for reference, not for AI)
-trak-reference/
