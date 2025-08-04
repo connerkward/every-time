@@ -1,11 +1,11 @@
-import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage } from 'electron';
+import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { GoogleCalendarService } from './googleCalendarService';
 import { TimerService } from './timerService';
 import Store from 'electron-store';
 
-let tray: Tray | null = null;
+let tray: (Tray & { clickTimeout?: NodeJS.Timeout }) | null = null;
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 const store = new Store();
@@ -42,35 +42,46 @@ function createTray(): void {
   tray.setTitle('⏱️'); // This emoji shows in the menu bar
 
   // Create main window when tray is clicked
-  tray.on('click', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
+  tray.on('click', (event, bounds) => {
+    // Prevent double-click issues by debouncing
+    if (tray && tray.clickTimeout) {
+      clearTimeout(tray.clickTimeout);
+    }
+    
+    if (tray) {
+      tray.clickTimeout = setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isVisible()) {
+          hideMainWindowWithAnimation();
+        } else {
+          showMainWindow(bounds);
+        }
       } else {
-        showMainWindow();
+        createMainWindow(bounds);
       }
-    } else {
-      createMainWindow();
+    }, 50);
     }
   });
 
   // No context menu - use only click behavior
 }
 
-function createMainWindow(): void {
+function createMainWindow(trayBounds?: Electron.Rectangle): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    showMainWindow();
+    showMainWindow(trayBounds);
     return;
   }
 
   mainWindow = new BrowserWindow({
-    width: 320,
-    height: 400,
+    width: 300,
+    height: 360,
     resizable: false,
     alwaysOnTop: true,
     frame: false,
     transparent: true,
     vibrancy: 'sidebar',
+    skipTaskbar: true,
+    focusable: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -86,38 +97,137 @@ function createMainWindow(): void {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 
-  mainWindow.once('ready-to-show', () => {
-    showMainWindow();
-  });
-
-  mainWindow.on('blur', () => {
-    if (mainWindow && !mainWindow.webContents.isDevToolsOpened()) {
-      mainWindow.hide();
+  // Handle keyboard shortcuts
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // Close window with Escape key
+    if (input.key === 'Escape' && input.type === 'keyDown') {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        hideMainWindowWithAnimation();
+      }
     }
   });
 
+  mainWindow.once('ready-to-show', () => {
+    showMainWindow(trayBounds);
+  });
+
+  // Handle losing focus/clicking outside
+  mainWindow.on('blur', () => {
+    if (mainWindow && !mainWindow.webContents.isDevToolsOpened()) {
+      hideMainWindowWithAnimation();
+    }
+  });
+
+  // Additional event for more reliable click-outside detection
+  mainWindow.on('focus', () => {
+    // Track when window gains focus to ensure proper state
+  });
+
+  // Global blur detection as backup
+  const handleMainWindowBlur = () => {
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && 
+        !mainWindow.isFocused() && !mainWindow.webContents.isDevToolsOpened()) {
+      setTimeout(() => {
+        // Double-check focus state after a brief delay
+        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isFocused() && 
+            mainWindow.isVisible() && !mainWindow.webContents.isDevToolsOpened()) {
+          hideMainWindowWithAnimation();
+        }
+      }, 100);
+    }
+  };
+
+  // Listen for when main window loses focus specifically
+  mainWindow.on('blur', handleMainWindowBlur);
+
   mainWindow.on('closed', () => {
+    // Clean up event listener
+    mainWindow?.removeListener('blur', handleMainWindowBlur);
     mainWindow = null;
   });
 }
 
-function showMainWindow(): void {
+function showMainWindow(providedTrayBounds?: Electron.Rectangle): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
-    createMainWindow();
+    createMainWindow(providedTrayBounds);
     return;
   }
 
-  const trayBounds = tray?.getBounds();
+  const trayBounds = providedTrayBounds || tray?.getBounds();
   const windowBounds = mainWindow.getBounds();
   
   if (trayBounds) {
-    const x = Math.round(trayBounds.x + (trayBounds.width / 2) - (windowBounds.width / 2));
-    const y = Math.round(trayBounds.y + trayBounds.height + 5);
+    // Get the current display
+    const display = screen.getDisplayNearestPoint({ x: trayBounds.x, y: trayBounds.y });
+    const { workArea } = display;
+    
+    // Calculate ideal position (centered under tray icon)
+    let x = Math.round(trayBounds.x + (trayBounds.width / 2) - (windowBounds.width / 2));
+    let y = Math.round(trayBounds.y + trayBounds.height + 5);
+    
+    // Handle screen edge detection and adjustment
+    // Right edge
+    if (x + windowBounds.width > workArea.x + workArea.width) {
+      x = workArea.x + workArea.width - windowBounds.width - 10;
+    }
+    
+    // Left edge
+    if (x < workArea.x) {
+      x = workArea.x + 10;
+    }
+    
+    // Bottom edge - position above tray if not enough space below
+    if (y + windowBounds.height > workArea.y + workArea.height) {
+      y = trayBounds.y - windowBounds.height - 5;
+    }
+    
+    // Top edge fallback
+    if (y < workArea.y) {
+      y = workArea.y + 10;
+    }
+    
     mainWindow.setPosition(x, y);
   }
   
+  // Smooth animation on show
+  mainWindow.setOpacity(0);
   mainWindow.show();
   mainWindow.focus();
+  
+  // Fade in animation
+  let opacity = 0;
+  const fadeIn = setInterval(() => {
+    opacity += 0.1;
+    if (opacity >= 1) {
+      opacity = 1;
+      clearInterval(fadeIn);
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setOpacity(opacity);
+    }
+  }, 10);
+}
+
+function hideMainWindowWithAnimation(): void {
+  if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible()) {
+    return;
+  }
+
+  // Fade out animation
+  let opacity = 1;
+  const fadeOut = setInterval(() => {
+    opacity -= 0.15;
+    if (opacity <= 0) {
+      opacity = 0;
+      clearInterval(fadeOut);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide();
+        mainWindow.setOpacity(1); // Reset for next show
+      }
+    } else if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setOpacity(opacity);
+    }
+  }, 10);
 }
 
 function createSettingsWindow(): void {
@@ -127,17 +237,16 @@ function createSettingsWindow(): void {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 800,
-    height: 700,
-    resizable: true,
+    width: 400,
+    height: 500,
+    resizable: false,
     title: 'Timer Tracker Settings',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    show: false,
-    parent: mainWindow || undefined
+    show: false
   });
 
   if (isDev) {
@@ -287,6 +396,15 @@ app.on('window-all-closed', (e: any) => {
 app.on('before-quit', () => {
   // Clean up
   timerService.cleanup();
+  
+  // Clean up tray
+  if (tray && !tray.isDestroyed()) {
+    if (tray.clickTimeout) {
+      clearTimeout(tray.clickTimeout);
+    }
+    tray.destroy();
+    tray = null;
+  }
 });
 
 // Security

@@ -1,0 +1,20 @@
+# Cursor Rules
+
+## Dependency Management - CRITICAL RULE
+
+NEVER manually add transitive dependencies to package.json. This includes packages like:
+- node-fetch, whatwg-url, webidl-conversions, tr46, extend, gaxios, gcp-metadata, google-logging-utils
+
+When you encounter "Cannot find module" errors in Electron apps:
+
+1. ALWAYS check if .npmrc has `shamefully-hoist=true` for Electron apps with "asar": false
+2. Use fresh installs: `rm -rf node_modules pnpm-lock.yaml && pnpm install`
+3. Use pnpm tools: `pnpm why <package>` and `pnpm ls --depth=<n>`
+4. NEVER manually inspect package.json files to find missing dependencies
+5. NEVER play "whack-a-mole" by adding individual packages
+
+The proper solution is always to use .npmrc with shamefully-hoist=true and let pnpm handle dependency resolution automatically.
+
+## Process Management
+- Always kill running processes before builds: `pkill -f "Timer Tracker" && pkill -f "electron" && pkill -f "main.js"`
+- Use the `rebuild:electron` command for complete rebuilds 

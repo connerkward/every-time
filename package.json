@@ -11,6 +11,7 @@
     "timer-tracker:build": "pnpm --filter @every-time/timer-tracker build",
     "timer-tracker:start": "pnpm --filter @every-time/timer-tracker start",
     "timer-tracker:build:electron": "pnpm --filter @every-time/timer-tracker build:electron",
+    "timer-tracker:rebuild:electron": "pnpm --filter @every-time/timer-tracker rebuild:electron",
     "lint": "pnpm --filter @every-time/timer-tracker lint",
     "type-check": "pnpm --filter @every-time/timer-tracker type-check"
   },
