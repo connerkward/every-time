@@ -1,0 +1,20 @@
+# Additional files to exclude from Cursor indexing only
+# (separate from .cursorignore which attempts to exclude from AI features too)
+
+# Electron build outputs
+dist-electron/
+**/dist-electron/
+
+# Large lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Build and cache directories  
+.turbo/
+.next/
+.vite/
+coverage/
+
+# Reference files (just for reference, not for AI)
+trak-reference/
