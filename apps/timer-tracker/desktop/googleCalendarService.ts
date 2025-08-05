@@ -211,7 +211,6 @@ export class GoogleCalendarService {
               </head>
               <body>
                 <div class="container">
-                  <div class="icon">🎉</div>
                   <div class="success">Authentication Successful!</div>
                   <div class="message">
                     <p>Your Google Calendar has been successfully connected to Timer Tracker.</p>
