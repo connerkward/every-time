@@ -1,5 +1,15 @@
 # Cursor Rules
 
+## SECURITY - CRITICAL RULE
+
+🚨 **NEVER PUT API KEYS, SECRETS, OR CREDENTIALS DIRECTLY IN CODE** 🚨
+
+- NEVER hardcode API keys, client secrets, tokens, or any sensitive data
+- ALWAYS use environment variables for sensitive configuration
+- NEVER commit .env files with real credentials
+- ALWAYS use placeholder values like "your-key-here" in examples
+- ALWAYS verify credentials come from process.env or user data directory
+
 ## Dependency Management - CRITICAL RULE
 
 NEVER manually add transitive dependencies to package.json. This includes packages like:

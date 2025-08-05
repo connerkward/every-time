@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('api', {
   // Calendar methods
   getCalendars: () => ipcRenderer.invoke('get-calendars'),
   startAuth: () => ipcRenderer.invoke('start-auth'),
+  setAuthCode: (authCode) => ipcRenderer.invoke('set-auth-code', authCode),
+  logout: () => ipcRenderer.invoke('logout'),
   
   // Timer methods
   getAllTimers: () => ipcRenderer.invoke('get-all-timers'),
@@ -32,5 +34,17 @@ contextBridge.exposeInMainWorld('api', {
   },
   notifyCalendarChange: () => {
     ipcRenderer.send('notify-calendar-change');
+  },
+
+  // OAuth event listeners
+  onOAuthSuccess: (callback) => {
+    ipcRenderer.on('oauth-success', callback);
+    return () => ipcRenderer.removeListener('oauth-success', callback);
+  },
+
+  // Logout event listener
+  onLogoutSuccess: (callback) => {
+    ipcRenderer.on('logout-success', callback);
+    return () => ipcRenderer.removeListener('logout-success', callback);
   }
 });

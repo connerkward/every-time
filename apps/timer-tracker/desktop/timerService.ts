@@ -24,6 +24,7 @@ export class TimerService {
   private googleCalendarService: GoogleCalendarService;
   private activeTimers: Map<string, ActiveTimer> = new Map();
   private autoSaveInterval: NodeJS.Timeout | null = null;
+  private currentUserId: string | null = null;
 
   constructor(store: Store, googleCalendarService: GoogleCalendarService) {
     this.store = store;
@@ -31,19 +32,35 @@ export class TimerService {
   }
 
   initialize(): void {
-    // Load active timers from storage
-    const savedActiveTimers = this.store.get('activeTimers', {}) as Record<string, string>;
-    for (const [name, startTimeString] of Object.entries(savedActiveTimers)) {
-      this.activeTimers.set(name, {
-        name,
-        startTime: new Date(startTimeString)
-      });
-    }
-
     // Set up auto-save for active timers
     this.autoSaveInterval = setInterval(() => {
       this.saveActiveTimersToStore();
     }, 30000); // Save every 30 seconds
+  }
+
+  setCurrentUser(userId: string | null): void {
+    this.currentUserId = userId;
+    
+    // Clear active timers when switching users
+    this.activeTimers.clear();
+    
+    if (userId) {
+      // Load active timers for the current user
+      const savedActiveTimers = this.store.get(`activeTimers_${userId}`, {}) as Record<string, string>;
+      for (const [name, startTimeString] of Object.entries(savedActiveTimers)) {
+        this.activeTimers.set(name, {
+          name,
+          startTime: new Date(startTimeString)
+        });
+      }
+    }
+  }
+
+  private getUserKey(prefix: string): string {
+    if (!this.currentUserId) {
+      throw new Error('No user is currently authenticated');
+    }
+    return `${prefix}_${this.currentUserId}`;
   }
 
   cleanup(): void {
@@ -54,15 +71,18 @@ export class TimerService {
   }
 
   private saveActiveTimersToStore(): void {
+    if (!this.currentUserId) return; // Don't save if no user is authenticated
+    
     const activeTimersData: Record<string, string> = {};
     for (const [name, timer] of this.activeTimers) {
       activeTimersData[name] = timer.startTime.toISOString();
     }
-    this.store.set('activeTimers', activeTimersData);
+    this.store.set(`activeTimers_${this.currentUserId}`, activeTimersData);
   }
 
   getAllTimers(): Timer[] {
-    return this.store.get('timers', []) as Timer[];
+    if (!this.currentUserId) return [];
+    return this.store.get(`timers_${this.currentUserId}`, []) as Timer[];
   }
 
   getActiveTimers(): Record<string, string> {
@@ -83,7 +103,7 @@ export class TimerService {
 
     const newTimer: Timer = { name, calendarId };
     timers.push(newTimer);
-    this.store.set('timers', timers);
+    this.store.set(`timers_${this.currentUserId}`, timers);
     
     return true;
   }
@@ -100,7 +120,7 @@ export class TimerService {
       timers.push({ name, calendarId });
     }
     
-    this.store.set('timers', timers);
+    this.store.set(`timers_${this.currentUserId}`, timers);
     return true;
   }
 
@@ -117,7 +137,7 @@ export class TimerService {
       this.stopTimer(name);
     }
     
-    this.store.set('timers', filteredTimers);
+    this.store.set(`timers_${this.currentUserId}`, filteredTimers);
     return true;
   }
 
@@ -196,7 +216,9 @@ export class TimerService {
   }
 
   private saveTimerSession(session: TimerSession): void {
-    const sessions = this.store.get('timerSessions', []) as TimerSession[];
+    if (!this.currentUserId) return; // Don't save if no user is authenticated
+    
+    const sessions = this.store.get(`timerSessions_${this.currentUserId}`, []) as TimerSession[];
     sessions.push({
       ...session,
       startTime: new Date(session.startTime),
@@ -208,11 +230,12 @@ export class TimerService {
       sessions.splice(0, sessions.length - 100);
     }
     
-    this.store.set('timerSessions', sessions);
+    this.store.set(`timerSessions_${this.currentUserId}`, sessions);
   }
 
   getTimerSessions(): TimerSession[] {
-    return this.store.get('timerSessions', []) as TimerSession[];
+    if (!this.currentUserId) return [];
+    return this.store.get(`timerSessions_${this.currentUserId}`, []) as TimerSession[];
   }
 
   isTimerActive(name: string): boolean {

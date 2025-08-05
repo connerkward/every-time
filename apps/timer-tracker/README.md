@@ -39,15 +39,18 @@ A Mac menu bar app for time tracking with Google Calendar integration.
 
 ### Google Calendar Setup
 
-To enable Google Calendar integration:
+**🎉 For End Users (Distributed App):**
+- **No setup required!** Just click "Connect Google Calendar" and log into your Google account.
+- The app includes pre-configured OAuth credentials for immediate use.
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the Google Calendar API
-4. Create OAuth 2.0 credentials for a desktop application
-5. Set the environment variables:
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
+**⚙️ For Developers:**
+- OAuth credentials are bundled with the app for distribution
+- For development, you can override with your own credentials
+- See [GOOGLE_SETUP.md](./GOOGLE_SETUP.md) for development setup
+
+**🔐 Security Note:** 
+- End users authenticate through Google's secure OAuth flow
+- No credentials are stored locally until you authorize the app
 
 ## Usage
 

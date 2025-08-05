@@ -1,23 +1,94 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen } from 'electron';
-import * as path from 'path';
 import * as fs from 'fs';
 import { GoogleCalendarService } from './googleCalendarService';
 import { TimerService } from './timerService';
 import Store from 'electron-store';
 
+// Load environment variables from .env file
+import dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load .env file - handle both development and production paths
+const isDev = !app.isPackaged;
+let envPath: string;
+
+if (isDev) {
+  // Development: dist/desktop -> app root
+  envPath = path.join(__dirname, '..', '..', '.env');
+} else {
+  // Production: app.asar -> app root (when asar is disabled)
+  envPath = path.join(process.resourcesPath, 'app', '.env');
+}
+
+dotenv.config({ path: envPath });
+
+// Debug: Log if environment variables are loaded
+console.log('Environment check:', {
+  isDev,
+  hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+  hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+  envPath,
+  clientIdLength: process.env.GOOGLE_CLIENT_ID?.length || 0,
+  clientSecretLength: process.env.GOOGLE_CLIENT_SECRET?.length || 0
+});
+
 let tray: (Tray & { clickTimeout?: NodeJS.Timeout }) | null = null;
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 const store = new Store();
-const isDev = !app.isPackaged;
 
 // Services with error handling
 let googleCalendarService: GoogleCalendarService;
 let timerService: TimerService;
 
 try {
+  // Set up OAuth event emitter for communication between service and main
+  const { EventEmitter } = require('events');
+  const oauthEmitter = new EventEmitter();
+  (global as any).oauthEmitter = oauthEmitter;
+  
   googleCalendarService = new GoogleCalendarService();
   timerService = new TimerService(store, googleCalendarService);
+  
+  // Initialize timer service
+  timerService.initialize();
+  
+  // If user is already authenticated, set the current user
+  if (googleCalendarService.isAuthenticated()) {
+    try {
+      const userId = googleCalendarService.getCurrentUserId();
+      if (userId) {
+        console.log('User already authenticated, setting current user:', userId);
+        googleCalendarService.setCurrentUser(userId);
+        timerService.setCurrentUser(userId);
+      }
+    } catch (error) {
+      console.error('Error getting user ID on startup:', error);
+    }
+  }
+  
+  // Listen for OAuth completion events
+  oauthEmitter.on('oauth-completed', async (data: any) => {
+    console.log('OAuth completed - notifying all windows', data);
+    
+    // Get the current user ID and set it in both services
+    try {
+      const userId = googleCalendarService.getCurrentUserId();
+      if (userId) {
+        console.log('Setting current user:', userId);
+        googleCalendarService.setCurrentUser(userId);
+        timerService.setCurrentUser(userId);
+      }
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+    }
+    
+    // Notify all windows that authentication succeeded
+    BrowserWindow.getAllWindows().forEach(window => {
+      console.log('Sending oauth-success to window:', window.id);
+      window.webContents.send('oauth-success');
+    });
+  });
 } catch (error) {
   console.error('Failed to initialize services:', error);
   const errorMessage = error instanceof Error ? error.message : String(error);
@@ -35,11 +106,12 @@ try {
 }
 
 function createTray(): void {
-  // Create tray with empty image - macOS will use the title text
-  tray = new Tray(nativeImage.createEmpty());
+  // Create tray with custom icon
+  const iconPath = path.join(__dirname, '../../assets/tray-icon-16.png');
+  const icon = nativeImage.createFromPath(iconPath);
   
+  tray = new Tray(icon);
   tray.setToolTip('Timer Tracker');
-  tray.setTitle('⏱️'); // This emoji shows in the menu bar
 
   // Create main window when tray is clicked
   tray.on('click', (event, bounds) => {
@@ -72,6 +144,10 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
     return;
   }
 
+  // Load custom app icon
+  const appIconPath = path.join(__dirname, '../../assets/app-icon.png');
+  const appIcon = nativeImage.createFromPath(appIconPath);
+
   mainWindow = new BrowserWindow({
     width: 300,
     height: 360,
@@ -82,6 +158,7 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
     vibrancy: 'sidebar',
     skipTaskbar: true,
     focusable: true,
+    icon: appIcon,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -236,6 +313,11 @@ function createSettingsWindow(): void {
     return;
   }
 
+  // Hide the main window when opening settings
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.hide();
+  }
+
   settingsWindow = new BrowserWindow({
     width: 400,
     height: 500,
@@ -270,7 +352,56 @@ ipcMain.handle('get-calendars', async () => {
 });
 
 ipcMain.handle('start-auth', async () => {
-  return await googleCalendarService.authenticate();
+  try {
+    const result = await googleCalendarService.authenticate();
+    
+    if (result.authUrl) {
+      // Open the auth URL in the default browser
+      await shell.openExternal(result.authUrl);
+      return { success: true };
+    } else if (result.success) {
+      return { success: true };
+    } else {
+      throw new Error(result.error || 'Authentication failed');
+    }
+  } catch (error) {
+    console.error('Authentication error:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('set-auth-code', async (event, authCode: string) => {
+  const result = await googleCalendarService.setAuthCode(authCode);
+  
+  if (result) {
+    // Notify all windows that OAuth completed successfully
+    BrowserWindow.getAllWindows().forEach(window => {
+      window.webContents.send('oauth-success');
+    });
+  }
+  
+  return result;
+});
+
+ipcMain.handle('logout', async () => {
+  try {
+    await googleCalendarService.logout();
+    
+    // Clear current user from both services
+    googleCalendarService.setCurrentUser(null);
+    timerService.setCurrentUser(null);
+    
+    // Notify all windows that logout completed
+    BrowserWindow.getAllWindows().forEach(window => {
+      console.log('Sending logout-success to window:', window.id);
+      window.webContents.send('logout-success');
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Logout error:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('get-all-timers', async () => {
@@ -299,6 +430,10 @@ ipcMain.handle('start-stop-timer', async (event, name: string) => {
 
 ipcMain.handle('open-settings', () => {
   createSettingsWindow();
+  // Hide the main window when settings opens
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+    hideMainWindowWithAnimation();
+  }
 });
 
 ipcMain.handle('quit-app', () => {

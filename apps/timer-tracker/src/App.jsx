@@ -24,11 +24,35 @@ const App = () => {
       loadHiddenCalendars();
     };
     
+    // Listen for OAuth success
+    const handleOAuthSuccess = () => {
+      console.log('OAuth success received in main App UI');
+      loadData();
+      loadHiddenCalendars();
+    };
+
+    // Listen for logout success
+    const handleLogoutSuccess = () => {
+      console.log('Logout success received in main App UI');
+      setIsAuthenticated(false);
+      setCalendars([]);
+      setTimers([]);
+      loadData();
+    };
+    
     if (window.api && window.api.onDataChanged) {
       window.api.onDataChanged(handleDataChanged);
     }
     
-    // Cleanup listener on unmount
+    if (window.api && window.api.onOAuthSuccess) {
+      window.api.onOAuthSuccess(handleOAuthSuccess);
+    }
+
+    if (window.api && window.api.onLogoutSuccess) {
+      window.api.onLogoutSuccess(handleLogoutSuccess);
+    }
+    
+    // Cleanup listeners on unmount
     return () => {
       if (window.api && window.api.removeDataChangedListener) {
         window.api.removeDataChangedListener(handleDataChanged);
@@ -177,8 +201,7 @@ const App = () => {
   const startAuth = async () => {
     try {
       await window.api.startAuth();
-      // Reload data after auth
-      setTimeout(loadData, 1000);
+      // UI will automatically update when OAuth success event is received
     } catch (error) {
       console.error('Auth error:', error);
     }
